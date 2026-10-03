@@ -1,7 +1,13 @@
 import math
 import numpy as np
 
-from config import FireConfig, GridConfig
+from config import (
+    STATE_BURNED,
+    STATE_BURNING,
+    STATE_UNBURNED,
+    FireConfig,
+    GridConfig,
+)
 from geometry import calculate_slope_angle, calculate_theta_ij, iter_neighbors
 from models import SimulationDiagnostics, SimulationResult, WindField
 from wind import get_edge_wind
@@ -69,12 +75,18 @@ def calculate_spread_probability(
 
 
 def create_initial_state(grid: GridConfig) -> np.ndarray:
-    state = np.zeros((grid.rows, grid.cols), dtype=int)
+    """
+    Creates the initial state matrix:
+      0 = Not burning / Unburned
+      1 = Burning (center cell initialized to 1)
+     -1 = Burned
+    """
+    state = np.full((grid.rows, grid.cols), STATE_UNBURNED, dtype=int)
 
     center_row = grid.rows // 2
     center_col = grid.cols // 2
 
-    state[center_row, center_col] = 1
+    state[center_row, center_col] = STATE_BURNING
     return state
 
 
@@ -85,7 +97,18 @@ def run_simulation(
     grid: GridConfig,
     fire: FireConfig
 ) -> SimulationResult:
+    """
+    Runs the cellular automaton wildfire simulation with 3 states:
+      0  = Not burning (Unburned)
+      1  = Burning
+      -1 = Burned
 
+    Burnout Logic:
+      - For each currently burning cell (1), draw r ~ Uniform(0, 1).
+      - If r < Pcontinue (fire.p_continue), the cell remains burning (1).
+      - Otherwise, it transitions to burned (-1).
+      - Burned cells (-1) cannot spread fire and cannot reignite.
+    """
     rng = np.random.default_rng(fire.random_seed)
 
     state = create_initial_state(grid)
@@ -104,7 +127,8 @@ def run_simulation(
         edges_evaluated = 0
         edges_clipped = 0
 
-        burning_cells = np.argwhere(state == 1)
+        # Query all currently burning cells (state == 1)
+        burning_cells = np.argwhere(state == STATE_BURNING)
 
         for i_row, i_col in burning_cells:
 
@@ -118,7 +142,8 @@ def run_simulation(
                 grid.cols
             ):
 
-                if state[j_row, j_col] != 0:
+                # Only unburned neighbors (state == 0) can ignite
+                if state[j_row, j_col] != STATE_UNBURNED:
                     continue
 
                 edges_evaluated += 1
@@ -184,14 +209,23 @@ def run_simulation(
                 km_values.append(km)
                 active_moistures.append(m_j)
 
+        # 1. Stochastic ignition for unburned cells (0 -> 1)
         p_burn = 1.0 - j_is_not_burn
+        ignition_draws = rng.random((grid.rows, grid.cols))
+        can_ignite = (state == STATE_UNBURNED)
+        ignites = can_ignite & (ignition_draws < p_burn)
 
-        random_draws = rng.random((grid.rows, grid.cols))
-        can_ignite = state == 0
-        ignites = can_ignite & (random_draws < p_burn)
+        # 2. Stochastic burnout for burning cells (1 -> 1 or -1)
+        # For each cell currently burning:
+        # If r < Pcontinue -> remains burning (1), else -> transitions to burned (-1)
+        burnout_draws = rng.random((grid.rows, grid.cols))
+        is_burning = (state == STATE_BURNING)
+        extinguishes = is_burning & (burnout_draws >= fire.p_continue)
 
+        # 3. Synchronous State Update
         new_state = state.copy()
-        new_state[ignites] = 1
+        new_state[extinguishes] = STATE_BURNED
+        new_state[ignites] = STATE_BURNING
 
         state = new_state
         state_history.append(state.copy())
@@ -202,10 +236,18 @@ def run_simulation(
             else 0.0
         )
 
+        num_burning = int(np.count_nonzero(state == STATE_BURNING))
+        num_burned = int(np.count_nonzero(state == STATE_BURNED))
+        num_unburned = int(np.count_nonzero(state == STATE_UNBURNED))
+        num_newly_ignited = int(np.count_nonzero(ignites))
+
         diagnostics.append(
             SimulationDiagnostics(
                 time_step=time_step,
-                burning_cells=int(state.sum()),
+                burning_cells=num_burning,
+                burned_cells=num_burned,
+                unburned_cells=num_unburned,
+                newly_ignited_cells=num_newly_ignited,
                 kw_min=min(kw_values) if kw_values else None,
                 kw_max=max(kw_values) if kw_values else None,
                 ks_min=min(ks_values) if ks_values else None,

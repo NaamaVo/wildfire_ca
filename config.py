@@ -2,6 +2,12 @@ from dataclasses import dataclass
 import math
 
 
+# Cell State Constants
+STATE_BURNED: int = -1       # Burned / Ash (brown)
+STATE_UNBURNED: int = 0      # Not Burning / Burnable (green)
+STATE_BURNING: int = 1       # Active Flame Front (red)
+
+
 @dataclass(frozen=True)
 class GridConfig:
     rows: int = 50
@@ -64,17 +70,22 @@ class FireConfig:
     """
     Wildfire propagation parameters.
     
-    Note:
-    - P0 is the baseline spread probability at zero moisture (M=0) before wind,
-      slope, and moisture adjustments.
-    - beta_m = 3.0 is a temporary prototype default (not scientifically calibrated)
-      that will be learned/calibrated from data in differentiable stages.
+    States:
+      0  = Not burning / Burnable
+      1  = Burning
+      -1 = Burned (extinguished)
+      
+    Transitions:
+      - Burning cells (1) remain burning with probability Pcontinue (p_continue),
+        otherwise transition to burned (-1).
+      - Burned cells (-1) cannot ignite other cells and cannot reignite.
     """
     p0: float = 0.2
-    beta_w: float = 1
-    beta_s: float = 1
-    beta_m: float = 1
+    beta_w: float = 1.0
+    beta_s: float = 1.0
+    beta_m: float = 1.0
     slope_offset: float = 3.0
+    p_continue: float = 0.3
     use_moisture: bool = True
     random_seed: int | None = None
 

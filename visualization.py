@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matplotlib.animation import FuncAnimation, PillowWriter
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.patches import Patch
 
 from config import (
@@ -15,7 +15,12 @@ from config import (
 from models import SimulationResult, WindField
 
 
-FIRE_CMAP = ListedColormap(["green", "red"])
+# Colormap mapping for 3 states:
+#  -1 = Burned (Brown)
+#   0 = Not Burning / Unburned (Green)
+#   1 = Burning (Red)
+FIRE_CMAP = ListedColormap(["#8B5A2B", "#2E7D32", "#D32F2F"])
+FIRE_NORM = BoundaryNorm(boundaries=[-1.5, -0.5, 0.5, 1.5], ncolors=3)
 
 
 def create_simulation_animation(
@@ -109,12 +114,11 @@ def create_simulation_animation(
     moist_cbar.set_label("Fuel Moisture Fraction")
     ax_moist.set_title("Fuel Moisture (M)")
 
-    # 4. Fire Spread Panel
+    # 4. Fire Spread Panel (3 states: -1=Burned (brown), 0=Not Burning (green), 1=Burning (red))
     fire_image = ax_fire.imshow(
         result.state_history[0],
         cmap=FIRE_CMAP,
-        vmin=0,
-        vmax=1
+        norm=FIRE_NORM
     )
 
     ax_fire.set_title("Wildfire Spread - T = 0")
@@ -141,14 +145,19 @@ def create_simulation_animation(
 
     legend_elements = [
         Patch(
-            facecolor="green",
+            facecolor="#2E7D32",
             edgecolor="black",
-            label="Not Burning"
+            label="Not Burning (0)"
         ),
         Patch(
-            facecolor="red",
+            facecolor="#D32F2F",
             edgecolor="black",
-            label="Burning"
+            label="Burning (1)"
+        ),
+        Patch(
+            facecolor="#8B5A2B",
+            edgecolor="black",
+            label="Burned (-1)"
         )
     ]
 
@@ -160,7 +169,14 @@ def create_simulation_animation(
 
     def update(frame):
         fire_image.set_array(result.state_history[frame])
-        ax_fire.set_title(f"Wildfire Spread - T = {frame}")
+        diag = result.diagnostics[frame - 1] if frame > 0 else None
+        if diag:
+            ax_fire.set_title(
+                f"Wildfire Spread - T = {frame}\n"
+                f"(Active: {diag.burning_cells}, Burned: {diag.burned_cells})"
+            )
+        else:
+            ax_fire.set_title("Wildfire Spread - T = 0 (Active: 1)")
         return [fire_image]
 
     animation = FuncAnimation(

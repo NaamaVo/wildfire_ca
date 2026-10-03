@@ -115,24 +115,21 @@ The current square grid should continue working until that stage.
 
 # 5. Current cell state model
 
-Current simplified implementation:
+The model implements a 3-state cellular automaton:
 
-0 = not burning
-1 = burning
+0  = NOT BURNING / UNBURNED (green)
+1  = BURNING (red)
+-1 = BURNED (brown)
 
-The initial fire starts at one cell near/in the center of the grid.
+The lifecycle and transition rules:
 
-Once a cell ignites, it currently remains in state 1.
-
-This is a prototype simplification.
-
-Future model should likely return to three wildfire states:
-
-- BURNABLE
-- BURNING
-- BURNED
-
-Do not silently introduce the third state unless requested.
+- The initial fire starts at one cell near/in the center of the grid in state 1 (BURNING).
+- Only cells in state 1 (BURNING) can ignite neighboring cells.
+- Only cells in state 0 (NOT BURNING) can be ignited.
+- In each time step T, for every cell in state 1 (BURNING), draw r ~ Uniform(0, 1):
+    - If r < Pcontinue (Pcontinue = 0.3), the cell remains 1 (BURNING).
+    - Otherwise (r >= Pcontinue), the cell transitions to -1 (BURNED).
+- Cells in state -1 (BURNED) are permanently extinguished: they cannot ignite other cells and cannot reignite.
 
 
 # 6. Current propagation probability
@@ -725,7 +722,8 @@ CURRENTLY IMPLEMENTED:
 - wind-dependent Kw
 - moisture-dependent Km
 - probabilistic ignition
-- binary states 0/1
+- 3-state cellular automaton (0=Unburned, 1=Burning, -1=Burned)
+- stochastic burnout mechanism (Pcontinue = 0.3)
 - edge clipping tracking
 - 4-panel GIF visualization
 - modular Python codebase
@@ -740,9 +738,11 @@ NOT YET IMPLEMENTED:
 - Rothermel
 - hexagonal grid
 - 18-neighbor radius-2 hex interactions
-- burned state
 - differentiable PyTorch implementation
 - trainable parameters
+- historical wildfire calibration
+- arrival-time modeling
+- real wildfire validation
 - historical wildfire calibration
 - arrival-time modeling
 - real wildfire validation

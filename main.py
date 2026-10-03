@@ -73,10 +73,16 @@ def main():
 
     if result.diagnostics:
         final = result.diagnostics[-1]
+        total_grid_cells = grid_cfg.rows * grid_cfg.cols
+        total_burned_footprint = final.burned_cells + final.burning_cells
         print("\n================ SIMULATION DIAGNOSTICS ================")
-        print(f"Final burning cells (T={grid_cfg.num_steps}): {final.burning_cells} / {grid_cfg.rows * grid_cfg.cols}")
-        print(f"Total directed edges evaluated across all steps: {total_edges_eval}")
-        print(f"Total edges clipped (P_raw > 1.0): {total_edges_clipped} ({overall_clip_fraction * 100:.2f}%)")
+        print(f"Time Step: T = {grid_cfg.num_steps}")
+        print(f"Active Burning Cells (State 1)  : {final.burning_cells}")
+        print(f"Burned Cells (State -1)         : {final.burned_cells}")
+        print(f"Total Affected Footprint        : {total_burned_footprint} / {total_grid_cells} ({total_burned_footprint / total_grid_cells * 100:.2f}%)")
+        print(f"Remaining Unburned Cells (0)    : {final.unburned_cells} / {total_grid_cells}")
+        print(f"Total directed edges evaluated  : {total_edges_eval}")
+        print(f"Total edges clipped (P_raw > 1) : {total_edges_clipped} ({overall_clip_fraction * 100:.2f}%)")
 
     # 4. Visualization & Animation Export
     fig, animation = create_simulation_animation(

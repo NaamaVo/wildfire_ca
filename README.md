@@ -1,6 +1,12 @@
 # Wildfire Cellular Automaton
 
-All files should be in the same folder.
+A modular research prototype for physically informed stochastic wildfire propagation on spatial grids.
+
+## Cell State Model
+
+- **`0` = Not Burning / Unburned (Green)**: Fuel present and eligible for ignition.
+- **`1` = Burning (Red)**: Actively spreading flame front. Each step, a burning cell remains burning with probability $P_{\text{continue}} = 0.3$, otherwise transitions to burned ($-1$).
+- **`-1` = Burned (Brown)**: Extinguished / ash. Cannot ignite other cells and cannot reignite.
 
 ## Install
 
@@ -14,14 +20,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Structure
+## Project Structure
 
 - `config.py` — parameters only (Grid, Terrain, Wind, Moisture, Fire, Output)
 - `models.py` — shared data structures (WindField, SimulationDiagnostics, SimulationResult)
-- `terrain.py` — topography generation
-- `wind.py` — spatial wind-field generation
+- `terrain.py` — synthetic topography generation
+- `wind.py` — spatial vector wind-field generation
 - `moisture.py` — spatial fuel-moisture field generation
 - `geometry.py` — neighborhood, direction, and slope calculations
-- `simulation.py` — fire-spread logic (Kw, Ks, Km, P_ij calculation and CA state updates)
-- `visualization.py` — 4-panel maps, animation, GIF export
+- `simulation.py` — 3-state CA propagation and burnout logic (Kw, Ks, Km, P_ij, Pcontinue)
+- `visualization.py` — 4-panel maps, animation, and GIF export
 - `main.py` — orchestration only

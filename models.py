@@ -14,6 +14,9 @@ class WindField:
 class SimulationDiagnostics:
     time_step: int
     burning_cells: int
+    burned_cells: int
+    unburned_cells: int
+    newly_ignited_cells: int
     kw_min: float | None
     kw_max: float | None
     ks_min: float | None
